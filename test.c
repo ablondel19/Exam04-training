@@ -47,50 +47,50 @@
 
 typedef struct	s_list
 {
-	char		**arguments;
+	char		**args;
 	void		*next;
 }				t_list;
 
 
-void runPipedCommands(t_list* command, char *userInput)
+void exec(t_list* cmd, char *userInput)
 {
-    int numPipes = countPipes(userInput);
+    int npipes = countPipes(userInput);
     pid_t pid;
-    int pipefds[2 * numPipes];
-    for (int i = 0; i < numPipes; i++)
+    int pfd[2 * npipes];
+    for (int i = 0; i < npipes; i++)
 	{
-        if (pipe(pipefds + i * 2) < 0) 
+        if (pipe(pfd + i * 2) < 0) 
 		{
             exit(EXIT_FAILURE);
         }
     }
     int j = 0;
-    while (command) 
+    while (cmd) 
 	{
         pid = fork();
         if (pid == 0)
 		{
-            //if not last command
-            if (command->next)
+            //if not last cmd
+            if (cmd->next)
 			{
-                if (dup2(pipefds[j + 1], 1) < 0)
+                if (dup2(pfd[j + 1], 1) < 0)
 				{
                     exit(EXIT_FAILURE);
                 }
             }
-            //if not first command&& j != 2 * numPipes
-            if (j != 0 && j != 2 * numPipes)
+            //if not first cmd&& j != 2 * npipes
+            if (j != 0 && j != 2 * npipes)
 			{
-                if (dup2(pipefds[j - 2], 0) < 0)
+                if (dup2(pfd[j - 2], 0) < 0)
 				{
                     exit(EXIT_FAILURE);
                 }
             }
-            for(int i = 0; i < 2 * numPipes; i++)
+            for(int i = 0; i < 2 * npipes; i++)
 			{
-                close(pipefds[i]);
+                close(pfd[i]);
             }
-            if (execvp(*command->arguments, command->arguments) < 0)
+            if (execvp(*cmd->args, cmd->args) < 0)
 			{
                 exit(EXIT_FAILURE);
             }
@@ -99,15 +99,15 @@ void runPipedCommands(t_list* command, char *userInput)
 		{
             exit(EXIT_FAILURE);
         }
-        command = command->next;
+        cmd = cmd->next;
         j += 2;
     }
     //Parent closes the pipes and wait for children
-    for(int i = 0; i < 2 * numPipes; i++)
+    for(int i = 0; i < 2 * npipes; i++)
 	{
-        close(pipefds[i]);
+        close(pfd[i]);
     }
-    for(int i = 0; i < numPipes + 1; i++)
+    for(int i = 0; i < npipes + 1; i++)
 	{
         wait(NULL);
 	}
