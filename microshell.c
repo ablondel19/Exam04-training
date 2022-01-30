@@ -185,11 +185,9 @@ int exec_cmd(t_list *cmd, char **env)
 		return (exit_fatal());
 	else if (pid == 0)
 	{
-		if (cmd->type == TYPE_PIPE
-			&& dup2(cmd->pipes[SIDE_IN], STDOUT) < 0)
+		if (cmd->type == TYPE_PIPE && dup2(cmd->pipes[SIDE_IN], STDOUT) < 0)
 			return (exit_fatal());
-		if (cmd->previous && cmd->previous->type == TYPE_PIPE
-			&& dup2(cmd->previous->pipes[SIDE_OUT], STDIN) < 0)
+		if (cmd->previous && cmd->previous->type == TYPE_PIPE && dup2(cmd->previous->pipes[SIDE_OUT], STDIN) < 0)
 			return (exit_fatal());
 		if ((ret = execve(cmd->args[0], cmd->args, env)) < 0)
 		{
@@ -230,7 +228,7 @@ int exec_cmds(t_list **cmds, char **env)
 		{
 			ret = EXIT_SUCCESS;
 			if (crt->length < 2)
-				ret = show_error("error: cd: bad arguments\n");
+				ret = show_error("error: cd: bad arguments");
 			else if (chdir(crt->args[1]))
 			{
 				ret = show_error("error: cd: cannot change directory to ");

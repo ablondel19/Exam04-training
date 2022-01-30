@@ -1,10 +1,12 @@
 /bin/ls
+a.out
+a.out.dSYM
 microshell
 microshell.c
-microshell.dSYM
 out.res
 subject.en.txt
 subject.fr.txt
+test.c
 test.sh
 
 /bin/cat microshell.c
@@ -195,11 +197,9 @@ int exec_cmd(t_list *cmd, char **env)
 		return (exit_fatal());
 	else if (pid == 0)
 	{
-		if (cmd->type == TYPE_PIPE
-			&& dup2(cmd->pipes[SIDE_IN], STDOUT) < 0)
+		if (cmd->type == TYPE_PIPE && dup2(cmd->pipes[SIDE_IN], STDOUT) < 0)
 			return (exit_fatal());
-		if (cmd->previous && cmd->previous->type == TYPE_PIPE
-			&& dup2(cmd->previous->pipes[SIDE_OUT], STDIN) < 0)
+		if (cmd->previous && cmd->previous->type == TYPE_PIPE && dup2(cmd->previous->pipes[SIDE_OUT], STDIN) < 0)
 			return (exit_fatal());
 		if ((ret = execve(cmd->args[0], cmd->args, env)) < 0)
 		{
@@ -240,7 +240,7 @@ int exec_cmds(t_list **cmds, char **env)
 		{
 			ret = EXIT_SUCCESS;
 			if (crt->length < 2)
-				ret = show_error("error: cd: bad arguments\n");
+				ret = show_error("error: cd: bad arguments");
 			else if (chdir(crt->args[1]))
 			{
 				ret = show_error("error: cd: cannot change directory to ");
@@ -301,22 +301,18 @@ OK
 /bin/ls | /usr/bin/grep microshell
 microshell
 microshell.c
-microshell.dSYM
 
 /bin/ls | /usr/bin/grep microshell | /usr/bin/grep micro
 microshell
 microshell.c
-microshell.dSYM
 
 /bin/ls | /usr/bin/grep microshell | /usr/bin/grep micro | /usr/bin/grep shell | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro
 microshell
 microshell.c
-microshell.dSYM
 
 /bin/ls | /usr/bin/grep microshell | /usr/bin/grep micro | /usr/bin/grep shell | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell
 microshell
 microshell.c
-microshell.dSYM
 
 /bin/ls ewqew | /usr/bin/grep micro | /bin/cat -n ; /bin/echo dernier ; /bin/echo
 dernier
@@ -325,7 +321,6 @@ dernier
 /bin/ls | /usr/bin/grep micro | /bin/cat -n ; /bin/echo dernier ; /bin/echo ftest ;
      1	microshell
      2	microshell.c
-     3	microshell.dSYM
 dernier
 ftest
 
@@ -337,13 +332,15 @@ qweqweqweqew
 qwewqeqrtregrfyukui
 
 /bin/ls ftest ; /bin/ls ; /bin/ls werwer ; /bin/ls microshell.c ; /bin/ls subject.fr.txt ;
+a.out
+a.out.dSYM
 leaks.res
 microshell
 microshell.c
-microshell.dSYM
 out.res
 subject.en.txt
 subject.fr.txt
+test.c
 test.sh
 microshell.c
 subject.fr.txt
@@ -351,16 +348,12 @@ subject.fr.txt
 /bin/ls | /usr/bin/grep micro ; /bin/ls | /usr/bin/grep micro ; /bin/ls | /usr/bin/grep micro ; /bin/ls | /usr/bin/grep micro ;
 microshell
 microshell.c
-microshell.dSYM
 microshell
 microshell.c
-microshell.dSYM
 microshell
 microshell.c
-microshell.dSYM
 microshell
 microshell.c
-microshell.dSYM
 
 /bin/cat subject.fr.txt | /usr/bin/grep a | /usr/bin/grep b ; /bin/cat subject.fr.txt ;
 Ecrire un programme qui aura ressemblera à un executeur de commande shell
