@@ -86,13 +86,11 @@ int		main(int ac, char **av, char **env)
 	(void)env;
 	int		i = 1;
 	char	***cmd = NULL;
-	cmd = (char***)malloc(sizeof(char**) * 150);
-	for (size_t i = 0; i < 150; i++)
-	{
-		cmd[i] = (char**)malloc(sizeof(char*) * 150);
-		for (size_t j = 0; j < 150; j++)
-		{
-			cmd[i][j] = (char*)malloc(sizeof(char) * 150);
+	cmd = (char***)malloc(sizeof(char**) * 1500);
+	for (size_t i = 0; i < 1500; i++) {
+		cmd[i] = (char**)malloc(sizeof(char*) * 1500);
+		for (size_t j = 0; j < 150; j++) {
+			cmd[i][j] = (char*)malloc(sizeof(char) * 1500);
 		}
 	}
 	size_t cmdi = 0;
