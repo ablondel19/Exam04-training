@@ -48,9 +48,7 @@ int		ft_type(char *av)
 void	printab(char **cmd)
 {
 	for (size_t i = 0; cmd[i]; i++)
-	{
 		printf("{%s}->", cmd[i]);
-	}
 	printf("\n\n");
 }
 
@@ -60,7 +58,6 @@ void	pipeline(char ***cmd, char **env)
 	pid_t pid;
 	while (*cmd)
 	{
-		printab(*cmd);
 		pipe(pfd);
 		pid = fork();
 		if (pid == 0)
@@ -75,8 +72,8 @@ void	pipeline(char ***cmd, char **env)
 		{
 			dup2(pfd[0], 0);
 			waitpid(0,0,0);
-			close(pfd[1]);
 			close(pfd[0]);
+			close(pfd[1]);
 		}
 		cmd++;
 	}
@@ -107,7 +104,14 @@ int		main(int ac, char **av, char **env)
 			cmd[cmdi][cmdj] = av[i];
 			cmdj++;
 			i++;
-			if (ft_type(av[i]) == BREAK || ft_type(av[i]) == PIPE)
+			if (ft_type(av[i]) == PIPE)
+			{
+				cmd[cmdi][cmdj] = 0;
+				cmdj = 0;
+				cmdi++;
+				i++;
+			}
+			else if (ft_type(av[i]) == BREAK)
 			{
 				cmd[cmdi][cmdj] = 0;
 				cmdj = 0;
