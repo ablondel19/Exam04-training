@@ -1,279 +1,141 @@
 /bin/ls
 a.out
-a.out.dSYM
 microshell
 microshell.c
+microshell.dSYM
 out.res
 subject.en.txt
 subject.fr.txt
-test.c
 test.sh
 
 /bin/cat microshell.c
 #include <stdlib.h>
-#include <unistd.h>
+#include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
+#include <unistd.h>
+#define PIPE 1
+#define BREAK 2
+#define ARG 3
 
-#define SIDE_OUT	0
-#define SIDE_IN		1
-
-#define STDIN		0
-#define STDOUT		1
-#define STDERR		2
-
-#define TYPE_END	0
-#define TYPE_PIPE	1
-#define TYPE_BREAK	2
-
-#ifdef TEST_SH
-# define TEST		1
-#else
-# define TEST		0
-#endif
-
-typedef struct	s_list
+int		tabsize(char **tab)
 {
-	char			**args;
-	int				length;
-	int				type;
-	int				pipes[2];
-	struct s_list	*previous;
-	struct s_list	*next;
-}				t_list;
+	int i = 0;
+	while (tab[i])
+		i++;
+	return i;
+}
 
-int ft_strlen(char const *str)
+size_t	ft_strlen(char *s)
 {
-	int	i;
-
-	i = 0;
-	while (str[i])
+	size_t i = 0;
+	while (s[i])
 		i++;
 	return (i);
 }
 
-int show_error(char const *str)
+char	*ft_strdup(char *src)
 {
-	if (str)
-		write(STDERR, str, ft_strlen(str));
-	return (EXIT_FAILURE);
+	int i = -1;
+	char *dst = NULL;
+	dst = malloc(sizeof(char) * (ft_strlen(src) + 1));
+	while (src[++i])
+		dst[i] = src[i];
+	dst[i] = '\0';
+	return dst;
 }
 
-int exit_fatal(void)
+int		ft_type(char *av)
 {
-	show_error("error: fatal\n");
-	exit(EXIT_FAILURE);
-	return (EXIT_FAILURE);
+	if (!av)
+		return (-1);
+	if (strcmp(av, "|") == 0)
+		return PIPE;
+	else if (strcmp(av, ";") == 0)
+		return BREAK;
+	return ARG;
 }
 
-void *exit_fatal_ptr(void)
+void	pipeline(char ***cmd, char **env, int *type)
 {
-	exit_fatal();
-	exit(EXIT_FAILURE);
-	return (NULL);
-}
-
-char *ft_strdup(char const *str)
-{
-	char	*copy;
-	int		i;
-
-	if (!(copy = (char*)malloc(sizeof(*copy) * (ft_strlen(str) + 1))))
-		return (exit_fatal_ptr());
-	i = 0;
-	while (str[i])
+	(void)env;
+	int index = 0;
+	int pfd[2];
+	pid_t pid;
+	while (*cmd)
 	{
-		copy[i] = str[i];
-		i++;
-	}
-	copy[i] = 0;
-	return (copy);
-}
-
-int add_arg(t_list *cmd, char *arg)
-{
-	char	**tmp;
-	int		i;
-
-	i = 0;
-	tmp = NULL;
-	if (!(tmp = (char**)malloc(sizeof(*tmp) * (cmd->length + 2))))
-		return (exit_fatal());
-	while (i < cmd->length)
-	{
-		tmp[i] = cmd->args[i];
-		i++;
-	}
-	if (cmd->length > 0)
-		free(cmd->args);
-	cmd->args = tmp;
-	cmd->args[i++] = ft_strdup(arg);
-	cmd->args[i] = 0;
-	cmd->length++;
-	return (EXIT_SUCCESS);
-}
-
-int list_push(t_list **list, char *arg)
-{
-	t_list	*new;
-
-	if (!(new = (t_list*)malloc(sizeof(*new))))
-		return (exit_fatal());
-	new->args = NULL;
-	new->length = 0;
-	new->type = TYPE_END;
-	new->previous = NULL;
-	new->next = NULL;
-	if (*list)
-	{
-		(*list)->next = new;
-		new->previous = *list;
-	}
-	*list = new;
-	return (add_arg(new, arg));
-}
-
-int list_rewind(t_list **list)
-{
-	while (*list && (*list)->previous)
-		*list = (*list)->previous;
-	return (EXIT_SUCCESS);
-}
-
-int list_clear(t_list **cmds)
-{
-	t_list	*tmp;
-	int		i;
-
-	list_rewind(cmds);
-	while (*cmds)
-	{
-		tmp = (*cmds)->next;
-		i = 0;
-		while (i < (*cmds)->length)
-			free((*cmds)->args[i++]);
-		free((*cmds)->args);
-		free(*cmds);
-		*cmds = tmp;
-	}
-	*cmds = NULL;
-	return (EXIT_SUCCESS);
-}
-
-int parse_arg(t_list **cmds, char *arg)
-{
-	int	is_break;
-
-	is_break = (strcmp(";", arg) == 0);
-	if (is_break && !*cmds)
-		return (EXIT_SUCCESS);
-	else if (!is_break && (!*cmds || (*cmds)->type > TYPE_END))
-		return (list_push(cmds, arg));
-	else if (strcmp("|", arg) == 0)
-		(*cmds)->type = TYPE_PIPE;
-	else if (is_break)
-		(*cmds)->type = TYPE_BREAK;
-	else
-		return (add_arg(*cmds, arg));
-	return (EXIT_SUCCESS);
-}
-
-int exec_cmd(t_list *cmd, char **env)
-{
-	pid_t	pid;
-	int		ret;
-	int		status;
-	int		pipe_open;
-
-	ret = EXIT_FAILURE;
-	pipe_open = 0;
-	if (cmd->type == TYPE_PIPE || (cmd->previous && cmd->previous->type == TYPE_PIPE))
-	{
-		pipe_open = 1;
-		if (pipe(cmd->pipes))
-			return (exit_fatal());
-	}
-	pid = fork();
-	if (pid < 0)
-		return (exit_fatal());
-	else if (pid == 0)
-	{
-		if (cmd->type == TYPE_PIPE && dup2(cmd->pipes[SIDE_IN], STDOUT) < 0)
-			return (exit_fatal());
-		if (cmd->previous && cmd->previous->type == TYPE_PIPE && dup2(cmd->previous->pipes[SIDE_OUT], STDIN) < 0)
-			return (exit_fatal());
-		if ((ret = execve(cmd->args[0], cmd->args, env)) < 0)
+		pipe(pfd);
+		pid = fork();
+		if (pid == 0)
 		{
-			show_error("error: cannot execute ");
-			show_error(cmd->args[0]);
-			show_error("\n");
-		}
-		exit(ret);
-	}
-	else
-	{
-		waitpid(pid, &status, 0);
-		if (pipe_open)
-		{
-			close(cmd->pipes[SIDE_IN]);
-			if (!cmd->next || cmd->type == TYPE_BREAK)
-				close(cmd->pipes[SIDE_OUT]);
-		}
-		if (cmd->previous && cmd->previous->type == TYPE_PIPE)
-			close(cmd->previous->pipes[SIDE_OUT]);
-		if (WIFEXITED(status))
-			ret = WEXITSTATUS(status);
-	}
-	return (ret);
-}
-
-int exec_cmds(t_list **cmds, char **env)
-{
-	t_list	*crt;
-	int		ret;
-
-	ret = EXIT_SUCCESS;
-	list_rewind(cmds);
-	while (*cmds)
-	{
-		crt = *cmds;
-		if (strcmp("cd", crt->args[0]) == 0)
-		{
-			ret = EXIT_SUCCESS;
-			if (crt->length < 2)
-				ret = show_error("error: cd: bad arguments");
-			else if (chdir(crt->args[1]))
-			{
-				ret = show_error("error: cd: cannot change directory to ");
-				show_error(crt->args[1]);
-				show_error("\n");
-			}
+			if (*(cmd + 1) && type[index] == PIPE)
+				dup2(pfd[1], 1);
+			close(pfd[0]);
+			close(pfd[1]);
+			execve((*cmd)[0], &(*cmd)[0], env);
 		}
 		else
-			ret = exec_cmd(crt, env);
-		if (!(*cmds)->next)
-			break ;
-		*cmds = (*cmds)->next;
+		{
+			if (type[index] == PIPE)
+				dup2(pfd[0], 0);
+			waitpid(0,0,0);
+			close(pfd[0]);
+			close(pfd[1]);
+		}
+		index++;
+		cmd++;
 	}
-	return (ret);
 }
 
-int main(int argc, char **argv, char **env)
+int		main(int ac, char **av, char **env)
 {
-	t_list	*cmds;
-	int		i;
-	int		ret;
-
-	ret = EXIT_SUCCESS;
-	cmds = NULL;
-	i = 1;
-	while (i < argc)
-		parse_arg(&cmds, argv[i++]);
-	if (cmds)
-		ret = exec_cmds(&cmds, env);
-	list_clear(&cmds);
-	if (TEST)
-		while (1);
-	return (ret);
+	(void)ac;
+	(void)av;
+	(void)env;
+	int		i = 1;
+	char	***cmd = NULL;
+	int		*type = NULL;
+	cmd = (char***)malloc(sizeof(char**) * 1500);
+	type = (int*)malloc(sizeof(int) * 1500);
+	for (size_t i = 0; i < 1500; i++) {
+		cmd[i] = (char**)malloc(sizeof(char*) * 1500);
+		for (size_t j = 0; j < 1500; j++) {
+			cmd[i][j] = (char*)malloc(sizeof(char) * 1500);
+		}
+	}
+	size_t cmdi = 0;
+	size_t cmdj = 0;
+	if (ac >= 2)
+	{
+		while (av[i])
+		{
+			cmd[cmdi][cmdj] = av[i];
+			type[cmdi] = ARG;
+			cmdj++;
+			i++;
+			if (ft_type(av[i]) == PIPE)
+			{
+				cmd[cmdi][cmdj] = 0;
+				type[cmdi] = PIPE;
+				cmdj = 0;
+				cmdi++;
+				i++;
+			}
+			else if (ft_type(av[i]) == BREAK)
+			{
+				cmd[cmdi][cmdj] = 0;
+				type[cmdi] = BREAK;
+				cmdj = 0;
+				cmdi++;
+				while (ft_type(av[i]) == BREAK)
+					i++;
+			}
+		}
+		cmd[cmdi][cmdj] = NULL;
+		cmd[cmdi + 1] = NULL;
+		pipeline(cmd, env, type);
+	}
+	return 0;
 }
 
 /bin/ls microshell.c
@@ -287,33 +149,42 @@ microshell.c
 
 ; ; /bin/echo OK
 OK
+OK
 
 ; ; /bin/echo OK ;
+OK
 OK
 
 ; ; /bin/echo OK ; ;
 OK
+OK
 
 ; ; /bin/echo OK ; ; ; /bin/echo OK
+OK
+OK
 OK
 OK
 
 /bin/ls | /usr/bin/grep microshell
 microshell
 microshell.c
+microshell.dSYM
 
 /bin/ls | /usr/bin/grep microshell | /usr/bin/grep micro
 microshell
 microshell.c
+microshell.dSYM
 
 /bin/ls | /usr/bin/grep microshell | /usr/bin/grep micro | /usr/bin/grep shell | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro
 microshell
 microshell.c
+microshell.dSYM
 
 /bin/ls | /usr/bin/grep microshell | /usr/bin/grep micro | /usr/bin/grep shell | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell
+
 microshell
 microshell.c
-
+microshell.dSYM
 /bin/ls ewqew | /usr/bin/grep micro | /bin/cat -n ; /bin/echo dernier ; /bin/echo
 dernier
 
@@ -321,6 +192,7 @@ dernier
 /bin/ls | /usr/bin/grep micro | /bin/cat -n ; /bin/echo dernier ; /bin/echo ftest ;
      1	microshell
      2	microshell.c
+     3	microshell.dSYM
 dernier
 ftest
 
@@ -333,14 +205,13 @@ qwewqeqrtregrfyukui
 
 /bin/ls ftest ; /bin/ls ; /bin/ls werwer ; /bin/ls microshell.c ; /bin/ls subject.fr.txt ;
 a.out
-a.out.dSYM
 leaks.res
 microshell
 microshell.c
+microshell.dSYM
 out.res
 subject.en.txt
 subject.fr.txt
-test.c
 test.sh
 microshell.c
 subject.fr.txt
@@ -348,12 +219,16 @@ subject.fr.txt
 /bin/ls | /usr/bin/grep micro ; /bin/ls | /usr/bin/grep micro ; /bin/ls | /usr/bin/grep micro ; /bin/ls | /usr/bin/grep micro ;
 microshell
 microshell.c
+microshell.dSYM
 microshell
 microshell.c
+microshell.dSYM
 microshell
 microshell.c
+microshell.dSYM
 microshell
 microshell.c
+microshell.dSYM
 
 /bin/cat subject.fr.txt | /usr/bin/grep a | /usr/bin/grep b ; /bin/cat subject.fr.txt ;
 Ecrire un programme qui aura ressemblera à un executeur de commande shell
@@ -528,6 +403,7 @@ N'oubliez pas de passer les variables d'environment à execve
 Conseils:
 Ne fuitez pas de file descriptor!
 ; /bin/cat subject.fr.txt ; /bin/cat subject.fr.txt | /usr/bin/grep a | /usr/bin/grep b | /usr/bin/grep z ; /bin/cat subject.fr.txt
+N'oubliez pas de passer les variables d'environment à execve
 Assignment name  : microshell
 Expected files   : *.c *.h
 Allowed functions: malloc, free, write, close, fork, waitpid, signal, kill, exit, chdir, execve, dup, dup2, pipe, strcmp, strncmp
