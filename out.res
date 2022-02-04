@@ -17,6 +17,7 @@ test.sh
 #define PIPE 1
 #define BREAK 2
 #define ARG 3
+#define CD 4
 
 int		tabsize(char **tab)
 {
@@ -24,6 +25,12 @@ int		tabsize(char **tab)
 	while (tab[i])
 		i++;
 	return i;
+}
+
+void	ft_putstr(char *s)
+{
+	while (*s)
+		write(2, s++, 1);
 }
 
 size_t	ft_strlen(char *s)
@@ -53,36 +60,88 @@ int		ft_type(char *av)
 		return PIPE;
 	else if (strcmp(av, ";") == 0)
 		return BREAK;
+	else if (strcmp(av, "cd") == 0)
+		return CD;
 	return ARG;
+}
+
+void	printtab(char **cmd)
+{
+	for (size_t i = 0; cmd[i]; i++)
+	{
+		printf("<{%s}>", cmd[i]);
+	}
+}
+
+void	ft_chdir(char **cmd)
+{
+	if (!cmd[1] || cmd[2])
+	{
+		ft_putstr("error: cd: bad arguments\n");
+		return ;
+	}
+	if (chdir(cmd[1]) == -1)
+	{
+		ft_putstr("error: cd: cannot change directory to ");
+		ft_putstr(cmd[1]);
+		ft_putstr("\n");
+		return ;
+	}
 }
 
 void	pipeline(char ***cmd, char **env, int *type)
 {
 	(void)env;
+	(void)type;
 	int index = 0;
 	int pfd[2];
 	pid_t pid;
 	while (*cmd)
 	{
-		pipe(pfd);
-		pid = fork();
-		if (pid == 0)
+		if (ft_type((*cmd)[0]) == CD)
 		{
-			if (*(cmd + 1) && type[index] == PIPE)
-				dup2(pfd[1], 1);
-			close(pfd[0]);
-			close(pfd[1]);
-			execve((*cmd)[0], &(*cmd)[0], env);
+			ft_chdir(*cmd);
 		}
 		else
 		{
-			if (type[index] == PIPE)
-				dup2(pfd[0], 0);
-			waitpid(0,0,0);
-			close(pfd[0]);
-			close(pfd[1]);
+			if ((*cmd)[0] != NULL)
+			{
+				if (pipe(pfd) == -1)
+				{
+					ft_putstr("error: fatal\n");
+					exit(1);
+				}
+				pid = fork();
+				if (pid == -1)
+				{
+					ft_putstr("error: fatal\n");
+					exit(1);
+				}
+				else if (pid == 0)
+				{
+					if (*(cmd + 1) && type[index] == PIPE)
+						dup2(pfd[1], 1);
+					close(pfd[0]);
+					close(pfd[1]);
+					if (execve((*cmd)[0], &(*cmd)[0], env) == -1)
+					{
+						ft_putstr("error: cannot execute ");
+						ft_putstr((*cmd)[0]);
+						ft_putstr("\n");
+					}
+					exit(1);
+				}
+				else
+				{
+					if (type[index] == PIPE)
+						dup2(pfd[0], 0);
+					waitpid(pid,NULL,0);
+					close(pfd[0]);
+					close(pfd[1]);
+				}
+				index++;
+			}
 		}
-		index++;
 		cmd++;
 	}
 }
@@ -109,10 +168,8 @@ int		main(int ac, char **av, char **env)
 	{
 		while (av[i])
 		{
-			cmd[cmdi][cmdj] = av[i];
-			type[cmdi] = ARG;
-			cmdj++;
-			i++;
+			while (av[i][0] == '\0')
+				i++;
 			if (ft_type(av[i]) == PIPE)
 			{
 				cmd[cmdi][cmdj] = 0;
@@ -130,12 +187,19 @@ int		main(int ac, char **av, char **env)
 				while (ft_type(av[i]) == BREAK)
 					i++;
 			}
+			if (av[i] != NULL)
+			{
+				cmd[cmdi][cmdj] = av[i];
+				type[cmdi] = ARG;
+				cmdj++;
+			}
+			i++;
 		}
 		cmd[cmdi][cmdj] = NULL;
 		cmd[cmdi + 1] = NULL;
 		pipeline(cmd, env, type);
 	}
-	return 0;
+	exit(0);
 }
 
 /bin/ls microshell.c
@@ -149,19 +213,14 @@ microshell.c
 
 ; ; /bin/echo OK
 OK
-OK
 
 ; ; /bin/echo OK ;
-OK
 OK
 
 ; ; /bin/echo OK ; ;
 OK
-OK
 
 ; ; /bin/echo OK ; ; ; /bin/echo OK
-OK
-OK
 OK
 OK
 
@@ -181,10 +240,10 @@ microshell.c
 microshell.dSYM
 
 /bin/ls | /usr/bin/grep microshell | /usr/bin/grep micro | /usr/bin/grep shell | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep micro | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell | /usr/bin/grep shell
-
 microshell
 microshell.c
 microshell.dSYM
+
 /bin/ls ewqew | /usr/bin/grep micro | /bin/cat -n ; /bin/echo dernier ; /bin/echo
 dernier
 
@@ -403,7 +462,6 @@ N'oubliez pas de passer les variables d'environment à execve
 Conseils:
 Ne fuitez pas de file descriptor!
 ; /bin/cat subject.fr.txt ; /bin/cat subject.fr.txt | /usr/bin/grep a | /usr/bin/grep b | /usr/bin/grep z ; /bin/cat subject.fr.txt
-N'oubliez pas de passer les variables d'environment à execve
 Assignment name  : microshell
 Expected files   : *.c *.h
 Allowed functions: malloc, free, write, close, fork, waitpid, signal, kill, exit, chdir, execve, dup, dup2, pipe, strcmp, strncmp
@@ -434,8 +492,37 @@ Conseils:
 N'oubliez pas de passer les variables d'environment à execve
 
 Conseils:
-Ne fuitez pas de file descriptor!N'oubliez pas de passer les variables d'environment à execve
-Assignment name  : microshell
+Ne fuitez pas de file descriptor!Assignment name  : microshell
+Expected files   : *.c *.h
+Allowed functions: malloc, free, write, close, fork, waitpid, signal, kill, exit, chdir, execve, dup, dup2, pipe, strcmp, strncmp
+--------------------------------------------------------------------------------------
+
+Ecrire un programme qui aura ressemblera à un executeur de commande shell
+- La ligne de commande à executer sera passer en argument du programme
+- Les executables seront appelés avec un chemin relatif ou absolut mais votre programme ne devra pas construire de chemin (en utilisant la variable d environment PATH par exemple)
+- Votre programme doit implementer "|" et ";" comme dans bash
+	- Nous n'essaierons jamais un "|" immédiatement suivi ou précédé par rien ou un autre "|" ou un ";"
+- Votre programme doit implementer la commande "built-in" cd et seulement avec un chemin en argument (pas de '-' ou sans argument)
+	- si cd n'a pas le bon nombre d'argument votre programme devra afficher dans STDERR "error: cd: bad arguments" suivi d'un '\n'
+	- si cd a echoué votre programme devra afficher dans STDERR "error: cd: cannot change directory to path_to_change" suivi d'un '\n' avec path_to_change remplacer par l'argument à cd
+	- une commande cd ne sera jamais immédiatement précédée ou suivie par un "|"
+- Votre programme n'a pas à gerer les "wildcards" (*, ~ etc...)
+- Votre programme n'a pas à gerer les variables d'environment ($BLA ...)
+- Si un appel systeme, sauf execve et chdir, retourne une erreur votre programme devra immédiatement afficher dans STDERR "error: fatal" suivi d'un '\n' et sortir
+- Si execve echoue votre programme doit afficher dans STDERR "error: cannot execute executable_that_failed" suivi d'un '\n' en ayant remplacé executable_that_failed avec le chemin du programme qui n'a pu etre executé (ca devrait etre le premier argument de execve)
+- Votre programme devrait pouvoir accepter des centaines de "|" meme si la limite du nombre de "fichier ouvert" est inferieur à 30.
+
+Par exemple, la commande suivante doit marcher:
+$>./microshell /bin/ls "|" /usr/bin/grep microshell ";" /bin/echo i love my microshell
+microshell
+i love my microshell
+$>
+
+Conseils:
+N'oubliez pas de passer les variables d'environment à execve
+
+Conseils:
+Ne fuitez pas de file descriptor!Assignment name  : microshell
 Expected files   : *.c *.h
 Allowed functions: malloc, free, write, close, fork, waitpid, signal, kill, exit, chdir, execve, dup, dup2, pipe, strcmp, strncmp
 --------------------------------------------------------------------------------------

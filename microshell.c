@@ -6,6 +6,7 @@
 #define PIPE 1
 #define BREAK 2
 #define ARG 3
+#define CD 4
 
 int		tabsize(char **tab)
 {
@@ -13,6 +14,12 @@ int		tabsize(char **tab)
 	while (tab[i])
 		i++;
 	return i;
+}
+
+void	ft_putstr(char *s)
+{
+	while (*s)
+		write(2, s++, 1);
 }
 
 size_t	ft_strlen(char *s)
@@ -42,6 +49,8 @@ int		ft_type(char *av)
 		return PIPE;
 	else if (strcmp(av, ";") == 0)
 		return BREAK;
+	else if (strcmp(av, "cd") == 0)
+		return CD;
 	return ARG;
 }
 
@@ -51,7 +60,22 @@ void	printtab(char **cmd)
 	{
 		printf("<{%s}>", cmd[i]);
 	}
-	
+}
+
+void	ft_chdir(char **cmd)
+{
+	if (!cmd[1] || cmd[2])
+	{
+		ft_putstr("error: cd: bad arguments\n");
+		return ;
+	}
+	if (chdir(cmd[1]) == -1)
+	{
+		ft_putstr("error: cd: cannot change directory to ");
+		ft_putstr(cmd[1]);
+		ft_putstr("\n");
+		return ;
+	}
 }
 
 void	pipeline(char ***cmd, char **env, int *type)
@@ -63,39 +87,52 @@ void	pipeline(char ***cmd, char **env, int *type)
 	pid_t pid;
 	while (*cmd)
 	{
-		if ((*cmd)[0] != NULL)
+		if (ft_type((*cmd)[0]) == CD)
 		{
-		pipe(pfd);
-		pid = fork();
-		if (pid == 0)
-		{
-			if (*(cmd + 1) && type[index] == PIPE)
-				dup2(pfd[1], 1);
-			close(pfd[0]);
-			close(pfd[1]);
-			printf("==={%d}===\n", execve((*cmd)[0], &(*cmd)[0], env));
-			exit(1);
+			ft_chdir(*cmd);
 		}
 		else
 		{
-			if (type[index] == PIPE)
-				dup2(pfd[0], 0);
-			waitpid(pid,NULL,0);
-			close(pfd[0]);
-			close(pfd[1]);
+			if ((*cmd)[0] != NULL)
+			{
+				if (pipe(pfd) == -1)
+				{
+					ft_putstr("error: fatal\n");
+					exit(1);
+				}
+				pid = fork();
+				if (pid == -1)
+				{
+					ft_putstr("error: fatal\n");
+					exit(1);
+				}
+				else if (pid == 0)
+				{
+					if (*(cmd + 1) && type[index] == PIPE)
+						dup2(pfd[1], 1);
+					close(pfd[0]);
+					close(pfd[1]);
+					execve((*cmd)[0], &(*cmd)[0], env);
+					exit(1);
+				}
+				else
+				{
+					if (type[index] == PIPE)
+						dup2(pfd[0], 0);
+					waitpid(pid,NULL,0);
+					close(pfd[0]);
+					close(pfd[1]);
+				}
+				index++;
+			}
 		}
-		index++;
-		}
-		printtab(*cmd);
 		cmd++;
 	}
+	exit(0);
 }
 
 int		main(int ac, char **av, char **env)
 {
-	(void)ac;
-	(void)av;
-	(void)env;
 	int		i = 1;
 	char	***cmd = NULL;
 	int		*type = NULL;
@@ -113,8 +150,6 @@ int		main(int ac, char **av, char **env)
 	{
 		while (av[i])
 		{
-			while (av[i][0] == '\0')
-				i++;
 			if (ft_type(av[i]) == PIPE)
 			{
 				cmd[cmdi][cmdj] = 0;
@@ -144,5 +179,5 @@ int		main(int ac, char **av, char **env)
 		cmd[cmdi + 1] = NULL;
 		pipeline(cmd, env, type);
 	}
-	return 0;
+	exit(0);
 }
