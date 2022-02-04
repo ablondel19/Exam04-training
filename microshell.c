@@ -78,34 +78,30 @@ void	ft_chdir(char **cmd)
 	}
 }
 
+void	error_fatal(void)
+{
+	ft_putstr("error: fatal\n");
+	exit(1);
+}
+
 void	pipeline(char ***cmd, char **env, int *type)
 {
-	(void)env;
-	(void)type;
 	int index = 0;
 	int pfd[2];
 	pid_t pid;
 	while (*cmd)
 	{
 		if (ft_type((*cmd)[0]) == CD)
-		{
 			ft_chdir(*cmd);
-		}
 		else
 		{
 			if ((*cmd)[0] != NULL)
 			{
 				if (pipe(pfd) == -1)
-				{
-					ft_putstr("error: fatal\n");
-					exit(1);
-				}
+					error_fatal();
 				pid = fork();
 				if (pid == -1)
-				{
-					ft_putstr("error: fatal\n");
-					exit(1);
-				}
+					error_fatal();
 				else if (pid == 0)
 				{
 					if (*(cmd + 1) && type[index] == PIPE)
@@ -119,7 +115,7 @@ void	pipeline(char ***cmd, char **env, int *type)
 				{
 					if (type[index] == PIPE)
 						dup2(pfd[0], 0);
-					waitpid(pid,NULL,0);
+					waitpid(pid, NULL, 0);
 					close(pfd[0]);
 					close(pfd[1]);
 				}
