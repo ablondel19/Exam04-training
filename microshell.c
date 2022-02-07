@@ -8,14 +8,6 @@
 #define ARG 3
 #define CD 4
 
-int		tabsize(char **tab)
-{
-	int i = 0;
-	while (tab[i])
-		i++;
-	return i;
-}
-
 void	ft_putstr(char *s)
 {
 	while (*s)
@@ -35,6 +27,8 @@ char	*ft_strdup(char *src)
 	int i = -1;
 	char *dst = NULL;
 	dst = malloc(sizeof(char) * (ft_strlen(src) + 1));
+	if (!dst)
+		exit(1);
 	while (src[++i])
 		dst[i] = src[i];
 	dst[i] = '\0';
@@ -126,7 +120,6 @@ void	pipeline(char ***cmd, char **env, int *type)
 		}
 		cmd++;
 	}
-	exit(0);
 }
 
 int		main(int ac, char **av, char **env)
