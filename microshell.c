@@ -112,7 +112,6 @@ void	pipeline(char ***cmd, char **env, int *type)
 					ft_putstr("error: cannot execute ");
 					ft_putstr((*(cmd)[0]));
 					ft_putstr("\n");
-					exit(1);
 				}
 				else
 				{
@@ -136,11 +135,19 @@ int		main(int ac, char **av, char **env)
 	char	***cmd = NULL;
 	int		*type = NULL;
 	type = (int*)malloc(sizeof(int) * 1500);
+	if (!type)
+		exit(1);
 	cmd = (char***)malloc(sizeof(char**) * 1500);
+	if (!cmd)
+		exit(1);
 	for (size_t i = 0; i < 1500; i++) {
 		cmd[i] = (char**)malloc(sizeof(char*) * 1500);
+		if (!cmd[i])
+			exit(1);
 		for (size_t j = 0; j < 1500; j++) {
 			cmd[i][j] = (char*)malloc(sizeof(char) * 1500);
+			if (!cmd[i][j])
+				exit(1);
 		}
 	}
 	size_t cmdi = 0;
