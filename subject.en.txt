@@ -68,3 +68,5 @@ Don't forget to pass the environment variable to execve
 
 Hints:
 Do not leak file descriptors!
+
+--track-origins=yes --undef-value-errors=yes --show-leak-kinds=definite --leak-check=summary

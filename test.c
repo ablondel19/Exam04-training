@@ -6,7 +6,7 @@
 /*   By: ablondel <ablondel@student.s19.be>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/02/07 14:09:07 by ablondel          #+#    #+#             */
-/*   Updated: 2022/02/07 16:56:15 by ablondel         ###   ########.fr       */
+/*   Updated: 2022/02/08 17:21:32 by ablondel         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,106 +14,144 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <signal.h>
 #define PIPE 1
 #define BREAK 2
 #define ARG 3
 
-void	print(char *args[1000], int argtype[1000], size_t j)
+void	ft_putstr(char *s)
 {
-	for (size_t i = 0; i < j; i++)
-	{
-		if (argtype[i] == PIPE)
-		{
-			printf("{/// PIPE ///}\n");
-			i++;
-		}
-		else if (argtype[i] == BREAK)
-		{
-			printf("{/// BREAK ///}\n");
-			i++;
-		}
-		printf("{ %s | %d } \n", args[i], argtype[i]);
-	}
-	printf("{///// END /////}\n");
+	while (*s)
+		write(2, s++, 1);
 }
 
-int		is_piped(char *args[1000], int *index, size_t j)
+void	error_fatal()
 {
-	for (size_t i = *index; i < j; i++)
-	{
-		if (args[i][0] == '|')
-		{
-			args[i][0] = '\0';
-			*index = i + 1;
-			return (i);
-		}
-		if (args[i][0] == ';')
-		{
-			args[i][0] = '\0';
-			*index = i + 1;
-			return (0);
-		}
-	}
-	return (-1);
+	ft_putstr("error fatal\n");
+	exit(1);
 }
 
-void	pipeline(char *args[1000], int argtype[1000], int j)
+void	ft_chdir(char **cmd)
 {
-	(void)argtype;
-	//int pfd[2];
-	//pid_t pid;
+	if (!*(cmd + 1) || *(cmd + 2))
+	{
+		ft_putstr("error: cd: bad arguments\n");
+		return ;
+	}
+	if (chdir(*(cmd + 1)) == -1)
+	{
+		ft_putstr("error: cd: cannot change directory to ");
+		ft_putstr(*(cmd + 1));
+		ft_putstr("\n");
+		return ;
+	}
+}
+
+void	pipeline(char ***cmd, int *type, char **env)
+{
 	int index = 0;
-	//int i = 0;
+	int pfd[2];
+	int pid = 0;
 
-	is_piped(args, &index, j);
-	printf("%s\n", args[index]);
-	//while (is_piped(args, &index, j) != -1)
-	//{
-	//	if (pipe(pfd) == -1)
-	//		exit(1);
-	//	pid = fork();
-	//	if (pid == -1)
-	//		exit(1);
-	//	else if (pid == 0)
-	//	{
-	//		if (argtype[index - 1] == PIPE)
-	//			dup2(pfd[1], 1);
-	//		close(pfd[0]);
-	//		close(pfd[1]);
-	//		execve(args[index], &args[index], NULL);
-	//		exit(1);
-	//	}
-	//	else
-	//	{
-	//		if (argtype[index - 1] == PIPE)
-	//			dup2(pfd[0], 0);
-	//		waitpid(pid, NULL, 0);
-	//		close(pfd[0]);
-	//		close(pfd[1]);
-	//	}
-	//	i++;
-	//}
+	while (*cmd)
+	{
+		if (strcmp((*cmd)[0], "cd") == 0)
+			ft_chdir(*cmd);
+		else if ((*cmd)[0] != NULL)
+		{
+			if (pipe(pfd) == -1)
+				error_fatal();
+			if ((pid = fork()) == -1)
+				error_fatal();
+			else if (pid == 0)
+			{
+				if (type[index] == PIPE && *(cmd + 1))
+				{
+					if (dup2(pfd[1], 1) == -1)
+						error_fatal();
+					close(pfd[0]);
+					close(pfd[1]);
+				}
+				execve((*cmd)[0], &(*cmd)[0], env);
+				ft_putstr("error: cannot execute ");
+				ft_putstr((*cmd)[0]);
+				ft_putstr("\n");
+				exit(1);
+			}
+			else
+			{
+				if (type[index] == PIPE)
+				{
+					if (dup2(pfd[0], 0) == -1)
+						error_fatal();
+					close(pfd[0]);
+					close(pfd[1]);
+				}
+				waitpid(0, 0, 0);
+			}
+			close(pfd[0]);
+			close(pfd[1]);
+		}
+		index++;
+		cmd++;
+	}
 }
 
-int		main(int ac, char **av)
+int		main(int ac, char **av, char **env)
 {
-	(void)ac;
-	size_t i = 1;
-	size_t j = 0;
-	char	*args[1000] = {[0 ... 999] = 0};
-	int		argtype[1000] = {[0 ... 999] = 0};
+	size_t 	i = 1;
+	int 	cmdi = 0;
+	int 	cmdj = 0;
+	char	***args = NULL;
+	int		*type = NULL;
 
-	while (av[i])
+	if (ac >= 2)
 	{
-		args[j] = av[i];
-		if (av[i][0] == '|')
-			argtype[j] = PIPE;
-		else if (av[i][0] == ';')
-			argtype[j] = BREAK;
-		else
-			argtype[j] = ARG;
-		j++;
-		i++;
+		args = malloc(sizeof(char**) * ac);
+		type = malloc(sizeof(int) * ac);
+		if (!args || !type)
+			error_fatal();
+		for (size_t i = 0; i < ac; i++)
+		{
+			type[i] = 0;
+			args[i] = malloc(sizeof(char*) * ac);
+			if (!args[i])
+				error_fatal();
+		}
+		while (av[i])
+		{
+			if (av[i][0] == '|')
+			{
+				type[cmdi] = PIPE;
+				args[cmdi][cmdj] = 0;
+				cmdj = 0;
+				cmdi++;
+				i++;
+			}
+			else if (av[i][0] == ';')
+			{
+				type[cmdi] = BREAK;
+				args[cmdi][cmdj] = 0;
+				cmdj = 0;
+				cmdi++;
+				while (av[i][0] == ';')
+					i++;
+			}
+			type[cmdi] = ARG;
+			args[cmdi][cmdj] = av[i];
+			cmdj++;
+			i++;
+		}
+		args[cmdi][cmdj] = 0;
+		args[cmdi + 1] = 0;
+		pipeline(args, type, env);
+		for (size_t i = 0; i < ac; i++)
+		{
+			if (args[i])
+				free(args[i]);
+		}
+		free(args);
+		free(type);
 	}
-	pipeline(args, argtype, j);
+	exit(0);
 }
