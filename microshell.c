@@ -68,7 +68,9 @@ char	**next_pipe(int ac, char **av, int *index, int *type)
 	{
 		while (i < ac && av[i][0] == ';')
 			i++;
-	}	
+	}
+	if (i == ac)
+		return NULL;	
 	while (av[i] && av[i][0] != '|' && i && av[i][0] != ';' && i < ac)
 	{
 		res[j] = ft_strdup(av[i]);
@@ -101,7 +103,6 @@ void	ft_chdir(char **res)
 
 void	pipeline(int ac, char **av, char **env)
 {
-	(void)env;
 	int		index = 1;
 	char	**res = NULL;
 	int		pfd[2];
@@ -109,8 +110,6 @@ void	pipeline(int ac, char **av, char **env)
 	int		type = 0;
 	while (((res = next_pipe(ac, av, &index, &type)) != NULL) && index <= ac + 1)
 	{
-		if (index > ac && type == 0)
-			return ;
 		if (strcmp(res[0], "cd") == 0)
 			ft_chdir(res);
 		else
@@ -148,6 +147,8 @@ void	pipeline(int ac, char **av, char **env)
 		}
 		if (res)
 			ft_free(res);
+		if (index >= ac && type == BREAK)
+			return ;
 		res = NULL;
 	}
 	if (res)
@@ -157,9 +158,6 @@ void	pipeline(int ac, char **av, char **env)
 int		main(int ac, char **av, char **env)
 {
 	if (ac >= 2)
-	{
 		pipeline(ac, av, env);
-		//system("leaks a.out");
-		return 0;
-	}
+	return 0;
 }
