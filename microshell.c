@@ -53,6 +53,8 @@ char	**next_pipe(int ac, char **av, int *index, int *type)
 	int		j = 0;
 	char	**res = NULL;
 	int		size = 0;
+	if (*index > ac)
+		return NULL;
 	while (av[i] && av[i][0] != '|')
 	{
 		size++;
@@ -62,6 +64,11 @@ char	**next_pipe(int ac, char **av, int *index, int *type)
 	res = (char**)malloc(sizeof(char*) * (size + 1));
 	if (!res)
 		error_fatal();
+	if (i < ac && av[i][0] == ';')
+	{
+		while (i < ac && av[i][0] == ';')
+			i++;
+	}	
 	while (av[i] && av[i][0] != '|' && i && av[i][0] != ';' && i < ac)
 	{
 		res[j] = ft_strdup(av[i]);
@@ -71,8 +78,8 @@ char	**next_pipe(int ac, char **av, int *index, int *type)
 	*type = 0;
 	if (i < ac && av[i][0] == ';')
 		*type = BREAK;
-	res[j] = NULL;
 	*index = i + 1;
+	res[j] = NULL;
 	return res;
 }
 
@@ -102,6 +109,8 @@ void	pipeline(int ac, char **av, char **env)
 	int		type = 0;
 	while (((res = next_pipe(ac, av, &index, &type)) != NULL) && index <= ac + 1)
 	{
+		if (index > ac && type == 0)
+			return ;
 		if (strcmp(res[0], "cd") == 0)
 			ft_chdir(res);
 		else
@@ -117,8 +126,8 @@ void	pipeline(int ac, char **av, char **env)
 				{
 					if (dup2(pfd[1], 1) == -1)
 						error_fatal();
-					close(pfd[0]);
-					close(pfd[1]);
+					if (close(pfd[0]) == -1 || close(pfd[1]) == -1)
+						error_fatal();
 				}
 				execve(res[0], &res[0], env);
 				ft_putstr("error: cannot execute ");
@@ -127,14 +136,14 @@ void	pipeline(int ac, char **av, char **env)
 			}
 			else
 			{
-				if (index != 0 && type != BREAK)
+				if (type != BREAK)
 				{
 					if (dup2(pfd[0], 0) == -1)
 						error_fatal();
-					close(pfd[0]);
-					close(pfd[1]);
+					if (close(pfd[0]) == -1 || close(pfd[1]) == -1)
+						error_fatal();
 				}
-				waitpid(0,0,0);
+				waitpid(0, 0, 0);
 			}
 		}
 		if (res)
