@@ -1,12 +1,10 @@
 #include <stdlib.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdbool.h>
-#include <unistd.h>
-#define PIPE 1
-#define BREAK 2
-#define ARG 3
-#define CD 4
+#define ARG 1
+#define PIPE 2
+#define BREAK 3
 
 void	ft_putstr(char *s)
 {
@@ -14,169 +12,145 @@ void	ft_putstr(char *s)
 		write(2, s++, 1);
 }
 
-size_t	ft_strlen(char *s)
+void	ft_free(char **res)
 {
-	size_t i = 0;
+	int i = 0;
+	while (res[i])
+		free(res[i++]);
+	free(res);
+}
+
+int		ft_strlen(char *s)
+{
+	int i = 0;
 	while (s[i])
 		i++;
-	return (i);
+	return i;
+}
+
+void	error_fatal()
+{
+	ft_putstr("error fatal\n");
+	exit(1);
 }
 
 char	*ft_strdup(char *src)
 {
-	int i = -1;
-	char *dst = NULL;
-	dst = malloc(sizeof(char) * (ft_strlen(src) + 1));
+	int 	i = -1;
+	char	*dst = NULL;
+	dst = malloc(sizeof(char) * (ft_strlen(src + 1)));
 	if (!dst)
-		exit(1);
+		error_fatal();
 	while (src[++i])
 		dst[i] = src[i];
 	dst[i] = '\0';
 	return dst;
 }
 
-int		ft_type(char *av)
+char	**next_pipe(int ac, char **av, int *index, int *type)
 {
-	if (!av)
-		return (-1);
-	if (strcmp(av, "|") == 0)
-		return PIPE;
-	else if (strcmp(av, ";") == 0)
-		return BREAK;
-	else if (strcmp(av, "cd") == 0)
-		return CD;
-	return ARG;
-}
-
-void	printtab(char **cmd)
-{
-	for (size_t i = 0; cmd[i]; i++)
+	int 	i = *index;
+	int		j = 0;
+	char	**res = NULL;
+	int		size = 0;
+	while (av[i] && av[i][0] != '|')
 	{
-		printf("<{%s}>", cmd[i]);
+		size++;
+		i++;
 	}
+	i = *index;
+	res = (char**)malloc(sizeof(char*) * (size + 1));
+	if (!res)
+		error_fatal();
+	while (av[i] && av[i][0] != '|' && i && av[i][0] != ';' && i < ac)
+	{
+		res[j] = ft_strdup(av[i]);
+		i++;
+		j++;
+	}
+	*type = 0;
+	if (i < ac && av[i][0] == '|')
+		*type = BREAK;
+	res[j] = NULL;
+	*index = i + 1;
+	return res;
 }
 
-void	ft_chdir(char **cmd)
+void	ft_chdir(char **res)
 {
-	if (!cmd[1] || cmd[2])
+	if (!res[1] || res[2])
 	{
 		ft_putstr("error: cd: bad arguments\n");
 		return ;
 	}
-	if (chdir(cmd[1]) == -1)
+	if (chdir(res[1]) == -1)
 	{
 		ft_putstr("error: cd: cannot change directory to ");
-		ft_putstr(cmd[1]);
+		ft_putstr(res[1]);
 		ft_putstr("\n");
 		return ;
 	}
 }
 
-void	error_fatal(void)
+void	pipeline(int ac, char **av, char **env)
 {
-	ft_putstr("error: fatal\n");
-	exit(1);
-}
-
-void	pipeline(char ***cmd, char **env, int *type)
-{
-	int index = 0;
-	int pfd[2];
-	pid_t pid;
-	while (*cmd)
+	(void)env;
+	int		index = 1;
+	char	**res = NULL;
+	int		pfd[2];
+	int		pid = 0;
+	int		type = 0;
+	while (((res = next_pipe(ac, av, &index, &type)) != NULL) && index <= ac + 1)
 	{
-		if (ft_type((*cmd)[0]) == CD)
-			ft_chdir(*cmd);
+		if (strcmp(res[0], "cd") == 0)
+			ft_chdir(res);
 		else
 		{
-			if ((*cmd)[0] != NULL)
+			if (pipe(pfd) == -1)
+				error_fatal();
+			pid = fork();
+			if (pid == -1)
+				error_fatal();
+			else if (pid == 0)
 			{
-				if (pipe(pfd) == -1)
-					error_fatal();
-				pid = fork();
-				if (pid == -1)
-					error_fatal();
-				else if (pid == 0)
+				if (index < ac && type != BREAK)
 				{
-					if (*(cmd + 1) && type[index] == PIPE)
-						dup2(pfd[1], 1);
-					close(pfd[0]);
-					close(pfd[1]);
-					execve((*cmd)[0], &(*cmd)[0], env);
-					ft_putstr("error: cannot execute ");
-					ft_putstr((*(cmd)[0]));
-					ft_putstr("\n");
-				}
-				else
-				{
-					if (type[index] == PIPE)
-						dup2(pfd[0], 0);
-					waitpid(pid, NULL, 0);
+					if (dup2(pfd[1], 1) == -1)
+						error_fatal();
 					close(pfd[0]);
 					close(pfd[1]);
 				}
-				index++;
+				execve(res[0], &res[0], env);
+				ft_putstr("error: cannot execute ");
+				ft_putstr(res[0]);
+				ft_putstr("\n");
+			}
+			else
+			{
+				if (index != 0 && type != BREAK)
+				{
+					if (dup2(pfd[0], 0) == -1)
+						error_fatal();
+					close(pfd[0]);
+					close(pfd[1]);
+				}
+				waitpid(0,0,0);
 			}
 		}
-		cmd++;
+		if (res)
+			ft_free(res);
+		res = NULL;
 	}
+	if (res)
+		ft_free(res);
 }
 
 int		main(int ac, char **av, char **env)
 {
-	int		i = 1;
-	char	***cmd = NULL;
-	int		*type = NULL;
-	type = (int*)malloc(sizeof(int) * 1500);
-	if (!type)
-		exit(1);
-	cmd = (char***)malloc(sizeof(char**) * 1500);
-	if (!cmd)
-		exit(1);
-	for (size_t i = 0; i < 1500; i++) {
-		cmd[i] = (char**)malloc(sizeof(char*) * 1500);
-		if (!cmd[i])
-			exit(1);
-		for (size_t j = 0; j < 1500; j++) {
-			cmd[i][j] = (char*)malloc(sizeof(char) * 1500);
-			if (!cmd[i][j])
-				exit(1);
-		}
-	}
-	size_t cmdi = 0;
-	size_t cmdj = 0;
 	if (ac >= 2)
 	{
-		while (av[i])
-		{
-			if (ft_type(av[i]) == PIPE)
-			{
-				cmd[cmdi][cmdj] = 0;
-				type[cmdi] = PIPE;
-				cmdj = 0;
-				cmdi++;
-				i++;
-			}
-			else if (ft_type(av[i]) == BREAK)
-			{
-				cmd[cmdi][cmdj] = 0;
-				type[cmdi] = BREAK;
-				cmdj = 0;
-				cmdi++;
-				while (ft_type(av[i]) == BREAK)
-					i++;
-			}
-			if (av[i] != NULL)
-			{
-				cmd[cmdi][cmdj] = &av[i][0];
-				type[cmdi] = ARG;
-				cmdj++;
-			}
-			i++;
-		}
-		cmd[cmdi][cmdj] = NULL;
-		cmd[cmdi + 1] = NULL;
-		pipeline(cmd, env, type);
+		pipeline(ac, av, env);
+		system("leaks a.out");
+		return 0;
 	}
-	exit(0);
 }
