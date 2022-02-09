@@ -69,7 +69,7 @@ char	**next_pipe(int ac, char **av, int *index, int *type)
 		j++;
 	}
 	*type = 0;
-	if (i < ac && av[i][0] == '|')
+	if (i < ac && av[i][0] == ';')
 		*type = BREAK;
 	res[j] = NULL;
 	*index = i + 1;
@@ -150,7 +150,7 @@ int		main(int ac, char **av, char **env)
 	if (ac >= 2)
 	{
 		pipeline(ac, av, env);
-		system("leaks a.out");
+		//system("leaks a.out");
 		return 0;
 	}
 }
