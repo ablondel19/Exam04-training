@@ -2,9 +2,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
-#define ARG 1
-#define PIPE 2
-#define BREAK 3
+#define BREAK 1
 
 void	ft_putstr(char *s)
 {
@@ -61,9 +59,6 @@ char	**next_pipe(int ac, char **av, int *index, int *type)
 		i++;
 	}
 	i = *index;
-	res = (char**)malloc(sizeof(char*) * (size + 1));
-	if (!res)
-		error_fatal();
 	if (i < ac && av[i][0] == ';')
 	{
 		while (i < ac && av[i][0] == ';')
@@ -71,6 +66,9 @@ char	**next_pipe(int ac, char **av, int *index, int *type)
 	}
 	if (i == ac)
 		return NULL;	
+	res = (char**)malloc(sizeof(char*) * (size + 1));
+	if (!res)
+		error_fatal();
 	while (av[i] && av[i][0] != '|' && i && av[i][0] != ';' && i < ac)
 	{
 		res[j] = ft_strdup(av[i]);
@@ -114,6 +112,9 @@ void	pipeline(int ac, char **av, char **env)
 			ft_chdir(res);
 		else
 		{
+			
+			if (res[0] != NULL)
+			{
 			if (pipe(pfd) == -1)
 				error_fatal();
 			pid = fork();
@@ -128,7 +129,7 @@ void	pipeline(int ac, char **av, char **env)
 					if (close(pfd[0]) == -1 || close(pfd[1]) == -1)
 						error_fatal();
 				}
-				execve(res[0], &res[0], env);
+					execve(res[0], &res[0], env);
 				ft_putstr("error: cannot execute ");
 				ft_putstr(res[0]);
 				ft_putstr("\n");
@@ -142,7 +143,10 @@ void	pipeline(int ac, char **av, char **env)
 					if (close(pfd[0]) == -1 || close(pfd[1]) == -1)
 						error_fatal();
 				}
+				if (close(pfd[0]) == -1 || close(pfd[1]) == -1)
+					error_fatal();
 				waitpid(0, 0, 0);
+			}
 			}
 		}
 		if (res)
@@ -159,5 +163,6 @@ int		main(int ac, char **av, char **env)
 {
 	if (ac >= 2)
 		pipeline(ac, av, env);
-	return 0;
+	system("leaks a.out");
+	exit(0);
 }
