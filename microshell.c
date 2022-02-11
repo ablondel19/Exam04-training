@@ -64,7 +64,7 @@ char	**next_pipe(int ac, char **av, int *index, int *type)
 		while (i < ac && av[i][0] == ';')
 			i++;
 	}
-	if (i == ac)
+	if (i >= ac)
 		return NULL;	
 	res = (char**)malloc(sizeof(char*) * (size + 1));
 	if (!res)
@@ -112,9 +112,6 @@ void	pipeline(int ac, char **av, char **env)
 			ft_chdir(res);
 		else
 		{
-			
-			if (res[0] != NULL)
-			{
 			if (pipe(pfd) == -1)
 				error_fatal();
 			pid = fork();
@@ -129,7 +126,7 @@ void	pipeline(int ac, char **av, char **env)
 					if (close(pfd[0]) == -1 || close(pfd[1]) == -1)
 						error_fatal();
 				}
-					execve(res[0], &res[0], env);
+				execve(res[0], &res[0], env);
 				ft_putstr("error: cannot execute ");
 				ft_putstr(res[0]);
 				ft_putstr("\n");
@@ -146,7 +143,6 @@ void	pipeline(int ac, char **av, char **env)
 				if (close(pfd[0]) == -1 || close(pfd[1]) == -1)
 					error_fatal();
 				waitpid(0, 0, 0);
-			}
 			}
 		}
 		if (res)
