@@ -65,11 +65,11 @@ char	**next_pipe(int ac, char **av, int *index, int *type)
 			i++;
 	}
 	if (i >= ac)
-		return NULL;	
+		return NULL;
 	res = (char**)malloc(sizeof(char*) * (size + 1));
 	if (!res)
 		error_fatal();
-	while (av[i] && av[i][0] != '|' && i && av[i][0] != ';' && i < ac)
+	while (av[i] && av[i][0] != '|' && av[i][0] != ';' && i < ac)
 	{
 		res[j] = ft_strdup(av[i]);
 		i++;
